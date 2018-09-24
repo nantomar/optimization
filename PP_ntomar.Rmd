@@ -2,11 +2,28 @@
 title: "HW 2"
 output: html_notebook
 ---
+```{r}
+library("lpSolveAPI")
+z <- read.lp("PP_1ntomar.lp")
+z
+```
+this is the for the first part of the question , we solve for objective and variables , subject to constraints 
+```{r}
+solve(z)
+get.objective (z)
+```
+```{r}
+get.variables(z)
+```
+```{r}
+get.constraints(z)
+```
 
+for part 4 , we modifgy the model and solve for teh objective , variabkes subject to new constraints .
 
 ```{r}
 library("lpSolveAPI")
-x <- read.lp("PP_1.lp")
+x <- read.lp("PP_4ntomar.lp")
 x
 ```
 model name :
@@ -23,15 +40,11 @@ get.constraints(x)
 ```{r}
 get.variables(x)
 ```
----
-title: "HW 2"
-output: html_notebook
----
 
 
 ```{r}
 library("lpSolveAPI")
-y <- read.lp("PP_NTOMAR_5.lp")
+y <- read.lp("PP_5ntomar.lp")
 y
 ```
 now , we solve the problem 5 with new constraints and objective function 
