@@ -6,3 +6,4 @@ solve(z)
 get.objective (z)
 
 get.variables(z)
+get.constrainst(z)
