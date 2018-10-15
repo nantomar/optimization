@@ -1,0 +1,99 @@
+---
+title: "Goalprogramming"
+output: html_document
+---
+
+we read our file here 
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("gp_ntomar1.lp")
+x
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+####This file contains solutions to a goal programming  problem ,here we try to minimise the three diffrent goals of - Profit , employment level and total Investment captial .
+
+```{r}
+library("lpSolveAPI")
+x <- read.lp("gp_ntomar1.lp")
+x
+```
+```{r}
+solve(x)
+get.objective (x)
+```
+
+####we get all the  variabe value now in the objective function and in the constraints
+```{r}
+get.variables(x)
+```
+####Note that Y2+ is 8.333, so this solution adds nearly 20% more to the workforce. Consequently, management has concluded that a very high priority should be placed on avoiding an increase in the workforce. Furthermore, management has learned that raising more than $55 million for capital investment for the new products would be extremely difficult, so a very high priority also should be placed on avoiding capital investment above this level.
+
+
+####In our first goals, we minimize the hiring and capital expenses, with only those constraints.
+
+```{r}
+library("lpSolveAPI")
+z <- read.lp("gp_ntomar2.lp")
+z
+```
+```{r}
+solve(z)
+get.objective(z)
+```
+####as the solution is zero. So, these goals have now been met, and we can incorporate them as part of the constraints, where y2+ and y3+ are zero.
+
+
+##Here is the revised model
+```{r}
+library("lpSolveAPI")
+y <- read.lp("gp_ntomar3.lp")
+y
+```
+```{r}
+solve(y)
+get.objective(y)
+```
+
+```{r}
+get.variables(y)
+```
+####now we try to get the model streamlined by incorporating all goals in one programming also ,introducted M .
+```{r}
+library("lpSolveAPI")
+z <- read.lp("gp_ntomar4.lp")
+z
+```
+```{r}
+solve(z)
+get.objective(z)
+```
+```{r}
+get.variables(z)
+```
+####so in our model as we introduced m we can assign any big no to it however our solution values for variables would not change .
+####let see,now M=1000
+
+
+```{r}
+library("lpSolveAPI")
+n <- read.lp("gp_ntomar4.1.lp")
+n
+```
+#### the objective funaction changes but the variable values remain the same.
+
+```{r}
+solve(n)
+get.objective(n)
+```
+
+```{r}
+get.variables(n)
+```
+
