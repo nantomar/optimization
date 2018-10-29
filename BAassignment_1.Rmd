@@ -1,0 +1,174 @@
+---
+title: "BA assignment 1"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####the file contains Descriptive statistics solutions and Data wrangling results of a dataset of Transaction data of Online Retail company and its countries in multiple countries.
+
+
+###Part A) Descriptive Statistics & Normal Distributions
+  1.What is the probability of obtaining a score greater than 700 on a GMAT test that has a mean of 494 and a standard deviation of 100? Assume GMAT scores are normally distributed ?  
+
+
+ *We will do this in three steps:
+ + Step 1: Lets calculate the probabiliy of getting score greater than 50.
+    The Z-score for 700 is (700-494)/100=2.06
+ + Step 2:Calculate probabibily of z score
+ 
+ 
+```{r}
+1-pnorm(2.06)
+```
+###or 
+```{r}
+1-pnorm(700,mean=494,sd=100)
+```
+So 1.97% of total would exceed score of 700.  
+
+
+  2.Runzheimer International publishes business travel costs for various cities throughout the world. In particular, they publish per diem totals, which represent the average costs for the typical business traveler including three meals a day in business-class restaurants and single-rate lodging in business-class hotels and motels. If 86.65% of the per diem costs in Buenos Aires, Argentina, are less than $449 and if the standard deviation of per diem costs is $36, what is the average per diem cost in Buenos Aires? Assume that per diem costs are normally distributed.
+  
+*We will do this in two steps:
+ + The Z-score for 86.65% is Calculated by q norm
+```{r}
+qnorm(0.8665)
+```
+ if z is 1.11 value of mean = $449 - $36(1.11)= $409.04
+   
+   
+ 3.Calculate the correlation (Pearson Correlation Coefficient) between the temperatures of the two cities without using any R commands i.e. calculate step by step.   Kent=c(59, 68, 78, 60) 
+Los_Angeles=c(90, 82, 78, 75) 
+```{r}
+library(ISLR)
+kent=c(59,68,78,60)
+Los_Angeles=c(90,82,78,75)
+cor(kent,Los_Angeles,method = 'pearson')
+```
+
+##Part B) Data Wrangling
+
+
+
+```{r}
+library('dplyr')
+invoice <- read.csv(file = "Online_Retail.csv")
+colnames(invoice)
+```
+
+
+  4.The breakdown of the number of transactions by countries i.e. how many transactions are in the dataset for each country (consider all records including cancelled transactions). Showing total number and also in percentage. only countries accounting for more than 1% of the total transactions.
+```{r}
+invoice %>% group_by(Country) %>% 
+  summarise(Total_Transactions=n(), Percentage_Transactions = (n()/nrow(invoice))*100) %>% 
+  filter(Percentage_Transactions > 1) 
+```
+  
+5. a new variable ‘TransactionValue’ that is the product of the exising ‘Quantity’ and ‘UnitPrice’ variables. Add this variable to the dataframe. 
+```{r}
+invoice$TransactionValue = invoice$Quantity * invoice$UnitPrice
+head(invoice)
+```
+
+6.the breakdown of transaction values by countries i.e. how much money in total has been spent each country. Show this in total sum of transaction values. Show only countries with total transaction exceeding 130,000 British Pound
+```{r}
+invoice %>% group_by(Country) %>% summarise(TransValue=sum(TransactionValue)) %>% filter(TransValue>130000)
+```
+7 .for the set of next fpur questions we , first covert and split the invoice date field into day of the week , month and hour
+```{r}
+Temp=strptime(invoice$InvoiceDate,format='%m/%d/%Y %H:%M',tz='GMT')
+invoice$New_Invoice_Date <- as.Date(Temp)
+invoice$Invoice_Day_Week= weekdays(invoice$New_Invoice_Date)
+invoice$New_Invoice_Hour = as.numeric(format(Temp, "%H"))
+invoice$New_Invoice_Month = as.numeric(format(Temp, "%m"))
+
+```
+
+7.a)percentage of transactions (by numbers) by days of the week 
+
+```{r}
+invoice %>% group_by(Invoice_Day_Week) %>% summarise(trans_perday = n()/nrow(invoice) * 100)
+```
+7.b)percentage of transactions (by transaction volume) by days of the week 
+```{r}
+Total_TransactionVal = sum(invoice$TransactionValue)
+Total_TransactionVal
+```
+7.c)percentage of transactions (by transaction volume) by month of the year
+```{r}
+invoice %>% group_by(New_Invoice_Month) %>% summarise(trans_perday = sum(TransactionValue)/Total_TransactionVal * 100)
+```
+7.d)the date with the highest number of transactions from Australia
+```{r}
+Aus_Tran = invoice %>% filter(Country == 'Australia') %>% group_by(New_Invoice_Date) %>% summarise(max_tran_amt = sum(TransactionValue))
+Aus_Tran %>% filter(max_tran_amt == max(max_tran_amt))
+
+```
+7.e)the hour of the day to start this so that the distribution is at minimum for the customers.The responsible IT team is available from 7:00 to 20:00 every day
+```{r}
+invoice %>% group_by(New_Invoice_Hour) %>% summarise(tran_count = n())
+```
+#Result :7 to 8 would be the best hours 
+
+
+  8.the histogram of transaction values from Germany. Use the hist() function to plot
+```{r}
+hist(filter(invoice,Country=='Germany')$TransactionValue,col = blues9)
+```
+9.the highest number of transactions and the most valuable customer (i.e. highest total sum of transactions)
+ +customer with highest transaction
+```{r}
+customer_grp <- invoice %>% group_by(CustomerID) %>% summarise(customer_transaction = n())
+filter(customer_grp,customer_transaction==max(customer_grp$customer_transaction))
+```
+ +customer with highest value
+```{r}
+highestval_cust <- invoice %>% group_by(CustomerID) %>% summarise(highestvalue = sum(TransactionValue))
+highestval_cust = highestval_cust[complete.cases(highestval_cust),]
+filter(highestval_cust,highestvalue==max(highestval_cust$highestvalue))
+
+```
+
+10.the percentage of missing values for each variable in the dataset 
+```{r}
+colMeans(is.na(invoice))
+```
+
+11.the number of transactions with missing CustomerID records by countries
+```{r}
+invoice %>% group_by(Country) %>% summarise(missing_customerid = sum(is.na(CustomerID)))
+```
+
+12.how often the costumers comeback to the website for their next shopping
+```{r}
+dt <- invoice %>% group_by(New_Invoice_Date) %>% summarise(cnt=n())
+avg_days = max(diff(dt$New_Invoice_Date,1))
+print(avg_days)
+```
+13.return rate for the French customers.Considering the cancelled transactions as those where the ‘Quantity’ variable has a negative value.
+```{r}
+frech_cust <- filter(invoice,Country == 'France') 
+
+cancell_tran <- filter(frech_cust,Quantity < 0) 
+return_rate = nrow(cancell_tran) / nrow(frech_cust)
+print(return_rate)
+```
+
+14.the product that has generated the highest revenue for the retailer
+```{r}
+prod = invoice %>% group_by(Description) %>% summarise(highestprodval = sum(TransactionValue))
+filter(prod, highestprodval == max(highestprodval))
+```
+
+15.unique customers are represented in the dataset? You can use unique() and length() functions
+```{r}
+a = invoice 
+a[complete.cases(a),] %>% summarise(uniquer_customer = n())
+```
+
