@@ -109,7 +109,7 @@ Aus_Tran %>% filter(max_tran_amt == max(max_tran_amt))
 ```
 7.e)the hour of the day to start this so that the distribution is at minimum for the customers.The responsible IT team is available from 7:00 to 20:00 every day
 ```{r}
-t = invoice %>% group_by(New_Invoice_Hour) %>% summarise(tran_count = n())
+invoice %>% group_by(New_Invoice_Hour) %>% summarise(tran_count = n())
 ```
 #Result :7 to 8 would be the best hours 
 
