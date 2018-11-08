@@ -1,0 +1,295 @@
+---
+title: "SA"
+author: "nt"
+output: html_document
+---
+
+Ref: Generalized Simulated Annealing for Global Optimization: The GenSA Package
+An Application to Non-Convex Optimization in Finance and Physics
+by Yang Xiang, Sylvain Gubian, Brian Suomela and Julia Hoeng
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Load Libraries
+
+```{r}
+library(GenSA)
+library(ggplot2)
+library(GA)
+library(quantmod)
+library(ggplot2)
+```
+#### Define Function and Solve
+
+```{r}
+# The following function requires two inputs
+# Limits are (-3,-3) to (3, 3)
+ fun = function(x,y) { (sin(10*x)*cos(10*y)+2)/sqrt(x^4+y^4+1) } 
+ obj = function(z) { -fun(z[1],z[2])}
+ lower <- c(-3,-3)
+upper <- c(3,3)
+par <- c(2,2)
+```
+
+```{r}
+# Plot the function
+x=seq(-3,3,length=50) # tick marks on x axis
+y=seq(-3,3,length=50) # tick marks on y axis; defines grid for... 
+z=outer(x,y,fun) # matrix for plotting -- z vals / height of surface
+ persp3D(x, y, z, phi = 0, theta = 45,
+  xlab = "X", ylab = "Y",
+  main = "Surface elevation data",
+  color.palette = bl2gr.colors
+)
+filled.contour(x, y, z, color.palette = bl2gr.colors)
+```
+
+
+```{r}
+out <- GenSA(par=par,lower=lower,upper=upper,fn=obj)
+out[c("value","par","counts")]
+filled.contour(x, y, z, color.palette = bl2gr.colors, 
+      plot.axes = { axis(1);
+                    axis(2); points(out$par[1],out$par[2],
+                                    cex=2,col="red",lwd=2)}
+)
+```
+
+
+#### Define another function
+
+```{r}
+ nfun = function(x) {
+   (12*x^5-975*x^4+28000*x^3-345000*x^2+1800000*x)
+ }
+ll = c(0)
+ul = c(31)
+
+# Plot the function
+# Note, plotting as a maximization function
+p <- ggplot(data=data.frame(x=0),aes(x=x))
+p + stat_function(fun=nfun) + xlim(0,31)
+```
+
+#### Solve using GenSA
+
+Note that GenSA only solves minimization problems by default
+```{r}
+nfun1 = function(x) { -nfun(x)}
+ll = c(0)
+ul = c(31)
+par = 2
+out1 <- GenSA(par=par,lower=ll,upper=ul,fn=nfun1)
+out1[c("value","par","counts")]
+curve(nfun, from = 0, to = 31, n = 1000)
+points(out1$par[1],-out1$value, col = 2, pch = 19)
+```
+
+#### Portfolio Optimization
+
+Reference: https://cran.r-project.org/web/packages/PortfolioAnalytics/vignettes/portfolio_vignette.pdf
+
+Mean-risk models were developed in the 1950s for portfolio selection problems. Value-at-Risk (VaR) and Conditional Value-at-Risk (CVaR) are the most popular measures of downside risk. Mullen et al. (2011) and Ardia et al. (2011) used DEoptim to find the portfolio weights for which the portfolio has the lowest CVaR and each investment can contribute at most 22.5% to total portfolio CVaR risk. For details, please refer to Mullen et al. (2011); Ardia et al. (2011). The code for objective function in portfolio optimization are from Ardia et al. (2011) (https://journal.r-project.org/archive/2011/RJ-2011-005/RJ-2011-005.pdf)  
+
+```{r}
+library("quantmod")
+tickers <- c("F", "MCD", "GOOGL", "TGT", "GIS")
+getSymbols(tickers, from = "2010-12-01", to = "2018-09-5")
+P <- NULL
+for(ticker in tickers) {
+ tmp <- Cl(to.monthly(eval(parse(text = ticker))))
+ P <- cbind(P, tmp)
+}
+colnames(P) <- tickers
+R <- diff(log(P))
+R <- R[-1,]
+mu <- colMeans(R)
+sigma <- cov(R)
+library("PerformanceAnalytics")
+pContribCVaR <- ES(weights = rep(0.2, 5), method = "gaussian", portfolio_method = "component", mu = mu,
+                   sigma =sigma)$pct_contrib_ES
+obj <- function(w) {
+ fn.call <<- fn.call + 1
+ if (sum(w) == 0) { w <- w + 1e-2 }
+ w <- w / sum(w)
+ CVaR <- ES(weights = w, method = "gaussian", portfolio_method = "component", mu = mu, sigma = sigma)
+ tmp1 <- CVaR$ES
+ tmp2 <- max(CVaR$pct_contrib_ES - 0.225, 0)
+ out <- tmp1 + 1e3 * tmp2
+ return(out)
+}
+```
+
+#Applying SA to assign weights for optimum portfolio using min objective
+# Where x1 = F,x2= MCD, x3=GOOGL, x4=TGT, x5=GIS
+# Solution is the weights assigned to each of the stocks for optimum portfolio
+```{r}
+set.seed(1234)
+fn.call <<- 0
+out.GenSA <- GenSA(fn = obj, lower = rep(0, 5), upper = rep(1, 5), control = list(smooth = FALSE, max.call = 3000))
+fn.call.GenSA <- fn.call
+out.GenSA$value
+out.GenSA$counts
+cat("GenSA call functions", fn.call.GenSA, "times.\n")
+wstar.GenSA <- out.GenSA$par
+wstar.GenSA <- wstar.GenSA / sum(wstar.GenSA)
+rbind(tickers, round(100 * wstar.GenSA, 2))
+100 * (sum(wstar.GenSA * mu) - mean(mu))
+wstar.GenSA
+```
+#Applying GA to assign weights for optimum portfolio using min objective
+# Where x1 = F,x2= MCD, x3=GOOGL, x4=TGT, x5=GIS
+# Solution is the weights assigned to each of the stocks for optimum portfolio
+
+```{r}
+set.seed(1234)
+fn.call <<- 0
+GA1 <- ga(type = "real-valued",fitness=obj,lower= rep(0, 5),upper= rep(1, 5), popSize = 50,pcrossover = 0.75, pmutation = 0.1, maxiter = 100)
+nsol <- GA1@solution
+nsol <- nsol / sum(nsol)
+fn.call.GA1 <- fn.call
+nsol
+summary(GA1)
+plot(GA1)
+```
+####Results - comparison 
+
+
+```{r}
+b <- matrix(c(nsol, wstar.GenSA), nrow = 5, ncol = 2)
+rownames(b) = c("F", "MCD", "GOOGL", "TGT", "GIS")
+colnames(b) = c("GAPortfolio", "GenSAPortfolio")
+b
+TickerSymbol <- (c("F","MCD","GOOGL","TGT","GIS","______","TOTAL"))
+Company <- (c("Ford","McDonalds","GOOGLE","Target","General Mills","",""))
+GA_percent  <- (c(8,1,29,34,29,"_____ ",100))
+GenSA_percent <- (c(20,24,21,19,16,"_____ ",100))
+TData <- data.frame(TickerSymbol, Company, GA_percent, GenSA_percent) 
+TData
+```
+
+
+
+
+
+####GA and SA to search for optimal b0 and b1 estimates. The objective should be to minimize  SSE (sums of square error)
+* define function to evaluate a linear regression
+*takes intercept and the CYL and hp variables to compute the predicted Y_hat
+*we will try to minimize the SSE
+```{r}
+library(GenSA)
+library(ggplot2)
+library(GA)
+library(magrittr)
+library(quantmod)
+library(PerformanceAnalytics)
+library(knitr)
+```
+
+
+### simple linear model and values of coefficinets and intercept
+##Summary AND plot
+```{r}
+x <- c(61, 63, 67, 69, 70, 74, 76, 81, 86, 91, 95, 97)
+y <- c(4.28, 4.08, 4.42, 4.17, 4.48, 4.3, 4.82, 4.7, 5.11, 5.13, 5.64, 5.56)
+linear_model <- lm(y ~ x)
+summary(linear_model)
+ssyy <- sum((y - mean(y)) ^ 2)
+ssxy <- sum((x - mean(x)) * (y - mean(y)))
+ssx <- sum((x - mean(x)) ^ 2)
+b1 <- ssxy/ssx
+b0 <- mean(y) - b1 * mean(x)
+
+print(b1)
+print(b0)
+plot(y,x, col="red")
+```
+
+####Genetic Algorithm
+###Regression on same dataset applying Genetic Algorithm search :
+##for intercept and coeffiecnet values
+##Summary AND plot
+```{r}
+library(tidyverse)
+obj <- function (r) {
+    fn <- function (b0, b1) {
+        return (sum(y - (b0 + b1 * x)) ^ 2)
+    }
+    return (fn(r[1], r[2]))
+}
+
+ubound <- c(10, 4)
+lbound <- c(-10, 1)
+
+GA_search <- ga(
+    type = "real-valued",
+    fitness = function (x) -obj(x),
+    lower = lbound,
+    upper = ubound,
+    popSize = 50
+)
+
+summary(GA_search )
+plot(GA_search)
+
+```
+####Simulated Anealing
+###Regression on same dataset applying Simulated Anealing search :
+##for intercept and coeffiecnet values
+#
+```{r}
+par <- c(1, 0)
+sa_search <- GenSA(
+    par = par,
+    lower = lbound,
+    upper = ubound,
+    fn = obj
+)
+sa_search[c("value", "par", "counts")]
+
+```
+####Summary AND Regression line plot
+```{r}
+Dataset <- data.frame(x, y)
+ggplot(Dataset, aes(x = x, y = y)) +
+    ggtitle(
+        "Optimal regression line using :Genetic Algoritm ,Simulated Anealing and Linear Regression"
+    ) +
+    geom_point(shape=1) + geom_smooth(method=lm, se=FALSE, col = "green") +
+  
+  geom_abline(
+        intercept = sa_search$par[1],
+        slope = sa_search$par[2],
+        col = "blue"
+    ) +
+  geom_abline(
+        intercept = GA_search@solution[1],
+        slope = GA_search@solution[2],
+        col = "red"
+    ) +
+    geom_text(aes(
+        x = 70,
+        y = 5.4,
+        label = sprintf("GA -> Y = %g + %g * X", ga_search@solution[1], ga_search@solution[2]),
+        color = "GA"
+    )) +
+    geom_text(aes(
+        x = 70,
+        y = 5.2,
+        label = sprintf("SA -> Y = %g + %g * X", sa_search$par[1], sa_search$par[2]),
+        color = "SA"
+    )) +
+    geom_text(aes(
+        x = 70,
+        y = 5.0,
+        label = sprintf("LM -> Y = %g + %g * X", b0, b1),
+        color = "LM"
+    ))
+
+```
+
+
+
+
