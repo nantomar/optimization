@@ -1,0 +1,151 @@
+---
+title: "INTEGER PROGRAM"
+output: html_document
+---
+
+
+### Formulation of Problem
+
+Objective Function
+
+max: 8 x1 + 5 x2;
+
+Constraints
+
+```
+x1 + x2 <= 6;
+
+9 x1 + 5 x2 <= 45;
+
+```
+#### Reading the Lp files for different conditions and solving for it
+
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int1.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int2.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int3.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int4.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int5.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int6.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int7.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int8.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int9.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int10.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("int11.lp")
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+```
+
+### Result and plotting the tree
+
+```{r}
+
+library(data.tree)
+p<-Node$new("z=41.25,x1=3.75,x2=2.25")
+p1<-p$AddChild("z=39,x1=3,x2=3")
+p2<-p$AddChild("z=41,x1=4,x2=1.8")
+p3<-p2$AddChild("z=40.5,x1=4.44,x2=1.8")
+p4<-p2$AddChild("Infeasible")
+p5<-p3$AddChild("z=37,x1=4,x2=1")
+p6<-p3$AddChild("z=40,x1=5,x2=0")
+p7<-p$AddChild("z=41.11,x1=3.88,x2=2")
+p8<-p$AddChild("z=39,x1=3,x2=3")
+p9<-p7$AddChild("z=34,x1=3.88,x2=2")
+p10<-p7$AddChild("z=41,x1=4.0,x2=1.8")
+p11<-p10$AddChild("z=40.55,x1=4.0,x2=1.8(recursive)")
+P12<-p10$AddChild("Infeasible")
+plot(p)
+
+```
+
