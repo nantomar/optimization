@@ -392,7 +392,11 @@ The accuracy on validation data is the best achieved with Dropout method
 
 #This last modification was most successful with highest accuracy 
 ```{r}
-
+model_manipulation_results <- matrix(c('adam','rmsprop','adam','adam','adam','best','relu','relu','Tanh','relu','softmax','model',88.45,87.4,87.25,88.59,89.02,'is',0.4157,0.6751,0.5243,0.0951,0.1686,'no.5','cross entropy','cross entropy','cross entropy','mse','mse','mse',16,16,16,32,32,32),ncol=6)
+colnames(model_manipulation_results) <- c("Optimiser","activation",  "Accuracy in %", "loss","loss function","units")
+rownames(model_manipulation_results) <- c("1","2","3","4","5","6")
+modelmanipulationresults <- as.table(model_manipulation_results)
+model_manipulation_results
 ```
 
 #let's check the model performance on test set 
