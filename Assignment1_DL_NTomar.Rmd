@@ -1,0 +1,430 @@
+---
+title: "Modifying IMDB example"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
+In this notebook, we work on a dataset from IMDB site to classify movie reviews into "positive" reviews and "negative" reviews, just based on the text content of the reviews.
+```{r}
+library(readr)
+library(tidyr)
+library(tibble)
+library(plotly)
+```
+
+
+## The IMDB dataset
+
+The IMDB dataset , a set of 50,000 highly-polarized reviews from the Internet Movie Database. They are split into 25,000 reviews for training and 25,000 reviews for testing, each set consisting in 50% negative and 50% positive reviews.
+The IMDB dataset comes packaged with Keras. It has already been preprocessed: the reviews (sequences of words) have been turned into sequences of integers, where each integer stands for a specific word in a dictionary.
+
+##Loading the dataset
+
+
+```{r}
+library(keras)
+imdb <- dataset_imdb(num_words = 10000)
+c(c(train_data, train_labels), c(test_data, test_labels)) %<-% imdb
+```
+
+
+The argument `num_words = 10000` means that we will only keep the top 10,000 most frequently occurring words in the training data. Rare words will be discarded. This allows us to work with vector data of manageable size.
+
+The variables `train_data` and `test_data` are lists of reviews, each review being a list of word indices (encoding a sequence of words). `train_labels` and `test_labels` are lists of 0s and 1s, where 0 stands for "negative" and 1 stands for "positive":
+```{r}
+train_labels[[1]]
+```
+
+
+Top 10,000 most frequent words are considered , no word index will exceed 10,000:
+```{r}
+max(sapply(train_data, max))
+```
+
+
+##  Data Preparation
+* One-hot-encode method is used here so that the lists are converted to vectors of 0s and 1s.
+For eg:This would turn the sequence `[3, 5]` into a 10,000-dimensional vector that would be all zeros except for indices 3 and 5, which would be ones. This would allowy the first layer in your network to be a dense layer, capable of handling floating-point vector data.
+*vectorize the labels
+
+```{r}
+vectorize_sequences <- function(sequences, dimension = 10000) {
+  # Creating all-zero matrix of shape (len(sequences), dimension)
+  results <- matrix(0, nrow = length(sequences), ncol = dimension)
+  for (i in 1:length(sequences))
+    # Setting specific indices of results[i] to 1s
+    results[i, sequences[[i]]] <- 1
+  results
+}
+# vectorize training data
+x_train <- vectorize_sequences(train_data)
+# vectorize test data
+x_test <- vectorize_sequences(test_data)
+#vectorize labels
+y_train <- as.numeric(train_labels)
+y_test <- as.numeric(test_labels)
+```
+
+Data type of sample is now changed to numeric .
+```{r}
+str(x_train[1,])
+```
+
+
+## Building the Neural network
+The choice of network for the first model of three layers is the 'relu' activation function 
+ `layer_dense(units = 16, activation = "relu")`.
+Each dense layer with a `relu` activation implements the following chain of tensor operations:
+`output = relu(dot(W, input) + b)`
+
+Having 16 hidden units means that the weight matrix `W` will have shape `(input_dimension, 16)`, i.e. the dot product with `W` will project the input data onto a 16-dimensional representation space (and then we would add the bias vector `b` and apply the `relu` operation). 
+```{r}
+library(keras)
+firstmodel_3layer <- keras_model_sequential() %>% 
+  layer_dense(units = 16, activation = "relu", input_shape = c(10000)) %>% 
+  layer_dense(units = 16, activation = "relu") %>% 
+  layer_dense(units = 1, activation = "sigmoid")
+```
+
+
+##Configure the model - optimiser selection
+Lastly, we need to pick a loss function and an optimizer. crossentropy is usually the best choice when you are dealing with models that output probabilities and for binary classification probems. Crossentropy is a quantity from the field of Information Theory, that measures the "distance" between probability distributions, or in our case, between the ground-truth distribution and our predictions.
+
+configuring our model with the `rmsprop` optimizer and the `binary_crossentropy` loss function. 
+```{r}
+firstmodel_3layer %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+```
+
+
+## Validating our approach
+
+In order to monitor during training the accuracy of the model on data that it has never seen before, we will create a "validation set" by setting apart 10,000 samples from the original training data:
+
+```{r}
+val_indices <- 1:10000
+
+x_val <- x_train[val_indices,]
+partial_x_train <- x_train[-val_indices,]
+
+y_val <- y_train[val_indices]
+partial_y_train <- y_train[-val_indices]
+```
+
+Training our model for 20 epochs (20 iterations over all samples in the `x_train` and `y_train` tensors), in mini-batches of 512 samples. At this same time we will monitor loss and accuracy on the 10,000 samples that we set apart. This is done by passing the validation data as the `validation_data` argument:
+```{r}
+firstmodel_3layer %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+
+history <- firstmodel_3layer %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val)
+)
+
+```
+The call to `fit()` returns a `history` object. Let's take a look at it:
+```{r}
+str(history)
+```
+
+#Second model 
+the Second model is for four layers and The number of hidden units of the layer is 32
+```{r}
+library(keras)
+Secondmodel_4layer <- keras_model_sequential() %>% 
+  layer_dense(units = 32, activation = "relu", input_shape = c(10000)) %>% 
+  layer_dense(units = 32, activation = "relu") %>% 
+  layer_dense(units = 32, activation = "relu") %>% 
+  layer_dense(units = 1, activation = "sigmoid")
+```
+
+###Configure the model 
+ 
+## Validation
+```{r}
+val_indices <- 1:10000
+
+x_val2 <- x_train[val_indices,]
+partial_x_train2 <- x_train[-val_indices,]
+
+y_val2 <- y_train[val_indices]
+partial_y_train2 <- y_train[-val_indices]
+```
+
+We will now train our model for 20 epochs ,batches = 512 samples,Loss function =MSE
+
+```{r, echo=TRUE, results='hide'}
+Secondmodel_4layer %>% compile(
+  optimizer = "rmsprop",
+  loss = "mse",
+  metrics = c("accuracy")
+)
+
+Secondmodelhistory <- Secondmodel_4layer %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val2, y_val2)
+)
+```
+##Comparing the two models by Plotting 
+
+```{r}
+compare_cx <- data.frame(
+  firstmodel_3layer_train = history$metrics$loss,
+  firstmodel_3layer_val = history$metrics$val_loss,
+Secondmodel_4layer_train= Secondmodelhistory$metrics$loss,
+Secondmodel_val = Secondmodelhistory$metrics$val_loss
+) %>%
+  rownames_to_column() %>%
+  mutate(rowname = as.integer(rowname)) %>%
+  gather(key = "type", value = "value", -rowname)
+  
+p <- plot_ly(compare_cx,
+             x = ~rowname,
+             y = ~value,
+             color = ~type,
+             type = "scatter",
+             mode = "lines") %>% 
+  layout(title = "<b>Fig 1</b> Comparing model losses",
+         xaxis = list(title = "Epochs"),
+         yaxis = list(title = "Loss"))
+p
+```
+#Results of both models on validation set :
+```{r}
+results2 <- Secondmodel_4layer %>% evaluate(x_val2, y_val2)
+results <- firstmodel_3layer %>% evaluate(x_val, y_val)
+results
+results2
+
+```
+
+the accuracy of both models on validation set is nearly same, 86.5% and 86.6% 
+##Performance on test set of both models:
+```{r, echo=TRUE, results='hide'}
+Secondmodel_4layer %>% fit(x_train, y_train, epochs = 20, batch_size = 512)
+resultstest2 <- Secondmodel_4layer %>% evaluate(x_test, y_test)
+resultstest2
+firstmodel_3layer %>% fit(x_train, y_train, epochs = 20, batch_size = 512)
+resultstest <- firstmodel_3layer %>% evaluate(x_test, y_test)
+resultstest
+
+```
+The Accuracy in same for the test set is only 84.9% for first model and lower for sencond model 83.6% , this is because of overfitting of data while training ,
+this could be taken care of with the help of regularization tecniques.Regularization is the process of modulating the quantity of information that a model is allowed to store or to add constraints on what information it’s allowed to store. 
+
+Now, we will use two techniques  and Dropout
+
+##1.Regularization 
+Reducing networks size: The more capacity the network has, the more quickly it can model the training data, but the more susceptible it is to overfitting.Applying Weight Regularization with L2: The cost added to the loss function  is proportional to the absolute value of the weight coefficients
+
+2 layer network , units = 16 ,loss = "binary_crossentropy"
+
+```{r, echo=TRUE, results='hide'}
+model3 <- 
+  keras_model_sequential() %>%
+  layer_dense(units = 16, activation = "relu", input_shape = c(10000),
+              kernel_regularizer = regularizer_l2(l = 0.001)) %>%
+  layer_dense(units = 16, activation = "relu",
+              kernel_regularizer = regularizer_l2(l = 0.001)) %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+model3 %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = list("accuracy")
+)
+
+model3 %>% summary()
+
+```
+
+##Validation 
+```{r, echo=TRUE, results='hide'}
+model3history <-model3 %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val),
+  verbose = 2
+)
+
+```
+
+#Results :
+```{r}
+results3 <- model3 %>% evaluate(x_val, y_val)
+results3
+```
+##1.1 Regularization
+Applying Weight Regularization with L1: The cost added to the loss function  is proportional to the absolute value of the weight coefficients
+```{r, echo=TRUE, results='hide'}
+model3.1 <- 
+  keras_model_sequential() %>%
+  layer_dense(units = 16, activation = "relu", input_shape = c(10000),
+              kernel_regularizer = regularizer_l1(l = 0.001)) %>%
+  layer_dense(units = 16, activation = "relu",
+              kernel_regularizer = regularizer_l1(l = 0.001)) %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+model3.1 %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = list("accuracy")
+)
+
+model3.1 %>% summary()
+
+# validation 
+model3.1history <-model3.1 %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val),
+  verbose = 2
+)
+
+#Results of validation with l1
+results3.1 <- model3.1 %>% evaluate(x_val, y_val)
+results3.1
+# the $loss is 
+#[1] 0.4996383
+#$acc
+#[1] 0.8752
+```
+
+#model with regularizer_l1_l2 , loss function mse, activation = softmax
+```{r, echo=TRUE, results='hide'}
+model3.2 <- 
+  keras_model_sequential() %>%
+  layer_dense(units = 16, activation = "softmax", input_shape = c(10000),
+              kernel_regularizer = regularizer_l1(l = 0.001)) %>%
+  layer_dense(units = 16, activation = "softmax",
+              kernel_regularizer = regularizer_l1(l = 0.001)) %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+model3.2 %>% compile(
+  optimizer = "rmsprop",
+  loss = "mse",
+  metrics = list("accuracy")
+)
+model3.2 %>% summary()
+# validation of model 3.2
+model3.2history <-model3.2%>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val),
+  verbose = 2
+)
+
+#Results of validation with l1
+results3.2 <- model3.2 %>% evaluate(x_val, y_val)
+results3.2
+
+```
+
+  
+
+##2.Dropout
+Dropout is one of the most effective and most commonly used regularization techniques for neural networks. 
+The dropout rate is the fraction of the features that are zeroed out
+```{r ,echo=TRUE, results='hide'}
+dropout_model4 <- 
+  keras_model_sequential() %>%
+  layer_dense(units = 64, activation = "softmax", input_shape = c(10000)) %>%
+  layer_dropout(0.6) %>%
+  layer_dense(units = 16, activation = "softmax") %>%
+  layer_dropout(0.6) %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+dropout_model4 %>% compile(
+  optimizer = "adam",
+  loss = "mse",
+  metrics = list("accuracy")
+)
+
+dropout_model4 %>% summary()
+```
+##Validation -model
+```{r,echo=TRUE, results='hide'}
+dropout_history4 <- dropout_model4 %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val),
+  verbose = 2
+)
+
+```
+#Results :
+```{r}
+results4 <- dropout_model4 %>% evaluate(x_val, y_val)
+results4
+```
+The accuracy on validation data is the best achieved with Dropout method 
+*Optimiser = 'adam' ,   activation = relu,    acc=88.45 %  and loss=0.4157
+*Optimiser = 'rmsprop'  activation = relu,    acc=87.4%    and loss=0.6751
+*Optimiser = 'adam' ,   activation = Tanh,    acc=87.25%   and loss=0.5243
+*Optimiser = 'adam' ,   activation = relu,  loss function = mse ,units = 32  ,acc=88.59%   and loss=0.0951
+*Optimiser = 'adam' ,   activation = relu,  loss function = mse ,units = 64  ,acc=88.59%   and loss=0.0951
+*Optimiser = 'adam' ,   activation = softmax,  loss function = mse ,units = 64  ,acc=89.02%   and loss=0.1686
+
+
+#This last modification was most successful with highest accuracy 
+```{r}
+
+```
+
+#let's check the model performance on test set 
+```{r}
+dropout_model4 %>% fit(x_train, y_train, epochs = 4, batch_size = 512)
+results5 <- dropout_model4 %>% evaluate(x_test, y_test)
+results5
+#For configurtaion :*Optimiser = 'adam' ,   activation = softmax,  loss function = mse ,units = 64  ,acc=89.02%   and loss=0.1686
+#*$loss = 0.152684 and $acc =0.8882  highest on test set 
+```
+
+##Comparison of Regularization and Dropout models : PLOT
+```{r}
+compare_cx <- data.frame(
+  model3_train = model3history$metrics$loss,
+  model3_train_val = model3history$metrics$val_loss,
+  dropout_model4_train = dropout_history4$metrics$loss,
+ dropout_model4_val = dropout_history4$metrics$val_loss
+) %>%
+  rownames_to_column() %>%
+  mutate(rowname = as.integer(rowname)) %>%
+  gather(key = "type", value = "value", -rowname)
+  
+p2 <- plot_ly(compare_cx,
+             x = ~rowname,
+             y = ~value,
+             color = ~type,
+             type = "scatter",
+             mode = "lines") %>% 
+  layout(title = "<b>Fig 2</b> Comparing Regularization and dropout model losses",
+         xaxis = list(title = "Epochs"),
+         yaxis = list(title = "Loss"))
+p2
+```
+
