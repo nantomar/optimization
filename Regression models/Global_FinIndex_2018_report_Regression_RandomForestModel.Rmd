@@ -1,0 +1,334 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+##Getting the dataset 
+```{r}
+globalindex<-read.csv("11.csv") 
+attach(globalindex)
+```
+
+##prepare the factor variables for subsetting data - year 2017
+```{r}
+#change the income group of economy in factor
+globalindex$X.4 = factor(globalindex$X.4, levels = c('High income', 'Low income','Lower middle income','Upper middle income'), labels = c(1,2,3,4))
+#change the year in factor
+globalindex$X = factor(globalindex$X,levels = c('2011', '2014','2017'), labels = c(1,2,3))
+#subset the data on basis of year 2017, remove extaeous info on country code and income group
+globalindex=subset(globalindex[,-c(2,3)],globalindex$X==3)
+```
+
+##remove the percentage and convert all columns to numeric
+```{r}
+#convert data to numeric and remove % sign 
+df1 <- lapply(globalindex,gsub, pattern='%', replacement='')
+df <- as.data.frame(df1)
+library(dplyr)
+library(magrittr)
+library(plyr)
+df[,-2] %<>% mutate_if(is.factor,as.numeric)
+attach(df) 
+str(df)
+```
+##model for predicting factors predicting 'Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15.'
+** High income economy 
+##1. subset the data 
+##2.Missing data Imputation - Median 
+##3. find important variables using Lasso regression
+```{r}
+library(glmnet)
+library(caret)
+library(dplyr)
+df2= subset(df,df$X.4==1)
+preProcModel <- preProcess(df2, method = "medianImpute")
+DF2<-predict(preProcModel, df2)
+which( colnames(DF2)=="Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..")
+#lasso 
+X=data.matrix(DF2[,-654])
+Y=as.vector(DF2$Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..)
+set.seed(2019)
+library(glmnet)
+cvfit = cv.glmnet(X, Y)
+cvfit
+coef(cvfit, s = "lambda.min")
+#Mobile.money.account..rural.....age.15... 
+#Mobile.money.account..in.labor.force....age.15...
+# Used.a.mobile.phone.or.the.internet.to.access.a.financial.institution.account.in.the.past.year....age.15..                                           7.685212e-01
+# Used.a.mobile.phone.or.the.internet.to.access.a.financial.institution.account.in.the.past.year....with.a.financial.institution.account..age.15..     4.667407e-02
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..male....age.15.....                                                                        4.405501e-02
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..in.labor.force.....age.15.....                                                             8.302048e-05
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..out.of.labor.force.....age.15.....                                                         .           
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..female.....age.15.....                                                                     4.867494e-03
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..young.adults....age.15.24....                                                              .           
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..older.adults....age.25.....                                                                7.864529e-02
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..primary.education.or.less.....age.15.....                                                  5.645979e-03
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..secondary.education.or.more.....age.15.....                                                1.668516e-02
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..income..poorest.40......age.15.....                                                        .           
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15.....                                                         1.754016e-02
+# Used.a.mobile.phone.or.the.internet.to.access.an.account..rural.....age.15.....                                                                      .           
+# Used.a.mobile.phone.or.the.internet.to.access.an.account....with.an.account..age.15..                                                                6.066789e-04
+# Used.a.mobile.phone.or.the.internet.to.check.account.balance.in.the.past.year....age.15..    
+# Received.government.transfers.in.the.past.year..male.....age.15...                                                                                   5.308110e-049.904865e-03
+# Received.wages..into.a.financial.institution.account....age.15..                                                                                     2.575236e-02
+#Received.payments.for.agricultural.products.in.the.past.year..out.of.labor.force.....age.15...       -4.361816e-03
+#Saved.at.a.financial.institution..primary.education.or.less...age.15...                                                                              3.572690e-03
+#Received.wages.in.the.past.year..young.adults.....age.15.24..                                1.918004e-05
+#Received.payments.for.agricultural.products.in.the.past.year..out.of.labor.force.....age.15...                                                      -4.361816e-03
+#Received.wages.in.the.past.year..secondary.education.or.more.....age.15...                                                                           4.939932e-03
+# Sent.domestic.remittances..through.a.money.transfer.service....age.15..                                                                             -2.611803e-02
+# Sent.domestic.remittances..using.an.account....age.15..                                                                                             -2.736450e-03
+# Sent.domestic.remittances..through.a.financial.institution....age.15..                                                                              -6.067318e-03
+# Received.private.sector.wages.in.the.past.year..income..richest.60....age.15...                                                                      4.983457e-03
+
+```
+
+##4.Random forest regression model1 :
+```{r}
+#data partition 
+library(caTools)
+set.seed(2019)
+split = sample.split(DF2$Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..,SplitRatio = 0.8)
+training_set = subset(DF2, split == TRUE)
+test_set = subset(DF2, split == FALSE)
+
+#model - regression 
+
+library(randomForest)
+library(caret)
+mf <- train(Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15.. ~ Mobile.money.account..rural.....age.15...+ Mobile.money.account..in.labor.force....age.15...+Used.a.mobile.phone.or.the.internet.to.access.a.financial.institution.account.in.the.past.year....age.15..+                                    +Used.a.mobile.phone.or.the.internet.to.access.a.financial.institution.account.in.the.past.year....with.a.financial.institution.account..age.15..+Used.a.mobile.phone.or.the.internet.to.access.an.account..male....age.15.....
+            + Used.a.mobile.phone.or.the.internet.to.access.an.account..in.labor.force.....age.15.....                                                     +Used.a.mobile.phone.or.the.internet.to.access.an.account..female.....age.15.....+Used.a.mobile.phone.or.the.internet.to.access.an.account..young.adults....age.15.24....+Used.a.mobile.phone.or.the.internet.to.access.an.account..older.adults....age.25.....
+       +Used.a.mobile.phone.or.the.internet.to.access.an.account..primary.education.or.less.....age.15.....                            +Used.a.mobile.phone.or.the.internet.to.access.an.account..secondary.education.or.more.....age.15.....                                +Used.a.mobile.phone.or.the.internet.to.access.an.account..income..poorest.40......age.15.....       
++ Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15.....                                        + Used.a.mobile.phone.or.the.internet.to.access.an.account..rural.....age.15.....
+            +Used.a.mobile.phone.or.the.internet.to.access.an.account....with.an.account..age.15..                                                +Used.a.mobile.phone.or.the.internet.to.check.account.balance.in.the.past.year....age.15..  
+            +Received.government.transfers.in.the.past.year..male.....age.15...                                                                   +Received.wages..into.a.financial.institution.account....age.15..                                                           +Received.payments.for.agricultural.products.in.the.past.year..out.of.labor.force.....age.15...      
+            +Saved.at.a.financial.institution..primary.education.or.less...age.15...                                                +Received.wages.in.the.past.year..young.adults.....age.15.24..                            
+            +Received.payments.for.agricultural.products.in.the.past.year..out.of.labor.force.....age.15...                       +Received.wages.in.the.past.year..secondary.education.or.more.....age.15...                                           +Sent.domestic.remittances..through.a.money.transfer.service....age.15..+Sent.domestic.remittances..using.an.account....age.15..    +Sent.domestic.remittances..through.a.financial.institution....age.15..+Received.private.sector.wages.in.the.past.year..income..richest.60....age.15...
+            ,data = training_set, method = 'rf', trControl = trainControl(method = 'oob'),
+            tuneGrid = expand.grid(mtry =10:50))
+pred<-predict(mf,test_set)
+pred
+plot(mf)
+mf$bestTune
+
+
+#correlation matrix
+index <- c("Mobile.money.account..rural.....age.15...", "Mobile.money.account..in.labor.force....age.15..." ,"Used.a.mobile.phone.or.the.internet.to.access.a.financial.institution.account.in.the.past.year....age.15..","Used.a.mobile.phone.or.the.internet.to.access.a.financial.institution.account.in.the.past.year....with.a.financial.institution.account..age.15..","Used.a.mobile.phone.or.the.internet.to.access.an.account..male....age.15.....",
+           "Used.a.mobile.phone.or.the.internet.to.access.an.account..in.labor.force.....age.15....."                                                             
+           ,"Used.a.mobile.phone.or.the.internet.to.access.an.account..female.....age.15....."
+           ,"Used.a.mobile.phone.or.the.internet.to.access.an.account..young.adults....age.15.24...."
+           ,"Used.a.mobile.phone.or.the.internet.to.access.an.account..older.adults....age.25....."
+           ,"Used.a.mobile.phone.or.the.internet.to.access.an.account..primary.education.or.less.....age.15....."                                                
+           ,"Used.a.mobile.phone.or.the.internet.to.access.an.account..secondary.education.or.more.....age.15....."                                               
+           ,"Used.a.mobile.phone.or.the.internet.to.access.an.account..income..poorest.40......age.15....."       
+           , "Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15....."                                                   
+           , "Used.a.mobile.phone.or.the.internet.to.access.an.account..rural.....age.15....."
+           ,"Used.a.mobile.phone.or.the.internet.to.access.an.account....with.an.account..age.15.."                                                               
+           ,"Used.a.mobile.phone.or.the.internet.to.check.account.balance.in.the.past.year....age.15.."
+           ,"Received.government.transfers.in.the.past.year..male.....age.15..."                                                                                
+           ,"Received.wages..into.a.financial.institution.account....age.15.."                                                                                   
+           ,"Received.payments.for.agricultural.products.in.the.past.year..out.of.labor.force.....age.15..."      
+           ,"Saved.at.a.financial.institution..primary.education.or.less...age.15..."                                                                            
+           ,"Received.wages.in.the.past.year..young.adults.....age.15.24.."                            
+           ,"Received.payments.for.agricultural.products.in.the.past.year..out.of.labor.force.....age.15..."                                                     
+           ,"Received.wages.in.the.past.year..secondary.education.or.more.....age.15..."                                                                     
+           ,"Sent.domestic.remittances..through.a.money.transfer.service....age.15.."                                                                           
+           , "Sent.domestic.remittances..using.an.account....age.15.."                                                                                         
+           ,"Sent.domestic.remittances..through.a.financial.institution....age.15.."                                                                         
+           , "Received.private.sector.wages.in.the.past.year..income..richest.60....age.15...")
+newcordat <- DF2[index]
+
+res <- cor(newcordat)
+round(res, 2)
+##heat map 
+col<- colorRampPalette(c("blue", "white", "red"))(20)
+heatmap(x = res, col = col, symm = TRUE,distfun = dist, main='Heatmap of independent variables for Target Variable')
+
+library("PerformanceAnalytics")
+chart.Correlation(res, histogram=TRUE, pch=19)
+
+mf$finalModel
+mf$bestTune
+plot(mf)
+```
+
+** Low income economy 
+##1. subset the data 
+##2.Missing data Imputation - Median 
+##3. find important variables using Lasso regression
+```{r}
+#subset and imputation 
+df3= subset(df,df$X.4==2)
+preProcModel <- preProcess(df3, method = "medianImpute")
+DF3<-predict(preProcModel, df3)
+
+#finding imp varaibles
+library(glmnet)
+library(caret)
+library(psych)
+which( colnames(DF3)=="Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..")
+set.seed(2019)
+X=data.matrix(DF3[,-654])
+Y=as.vector(DF3$Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..)
+cvfit1 = cv.glmnet(X, Y)
+coef(cvfit1, s = "lambda.min")
+###imp variables
+#Made.digital.payments.in.the.past.year..female.....age.15..  =0.038185155
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15.....         
+#Account..out.of.labor.force....age.15...                                                                                                             0.0198969547
+#Outstanding.housing.loan..primary.education.or.less....age.15...                                                                                    -0.0634074752
+#Borrowed.to.start..operate..or.expand.a.farm.or.busines..primary.education.or.less....age.15...                                                     -0.0001389815
+#Coming.up.with.emergency.funds..not.possible..income..poorest.40.....age.15...                                                                      -0.0020884523
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15.....                                                         0.3431914009
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..older.adults....age.25.....                                                                0.3997657479
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..young.adults....age.15.24....                                                              0.0144861819
+index2<-c("Made.digital.payments.in.the.past.year..female.....age.15..","Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15.....","Account..out.of.labor.force....age.15...","Outstanding.housing.loan..primary.education.or.less....age.15...","Borrowed.to.start..operate..or.expand.a.farm.or.busines..primary.education.or.less....age.15...","Coming.up.with.emergency.funds..not.possible..income..poorest.40.....age.15...","Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15.....","Used.a.mobile.phone.or.the.internet.to.access.an.account..older.adults....age.25.....","Used.a.mobile.phone.or.the.internet.to.access.an.account..young.adults....age.15.24...." )
+model2var <- DF3[index2]
+res <- cor(model2var)
+round(res, 2)
+##heat map 
+col<- colorRampPalette(c("blue", "white", "red"))(20)
+heatmap(x = res, col = col, symm = TRUE,distfun = dist, main='Heatmap of independent variables for Target Variable')
+
+library("PerformanceAnalytics")
+chart.Correlation(res, histogram=TRUE, pch=19)
+
+```
+##4.Random forest regression model2 :
+```{r}
+#data partition 
+library(caTools)
+set.seed(2019)
+split = sample.split(DF3$Used.a.mobile.phone.or.the.internet.to.access.an.account....with.an.account..age.15..,SplitRatio = 0.8)
+training_set2 = subset(DF3, split == TRUE)
+test_set2 = subset(DF3, split == FALSE)
+#random forest regression 
+library(randomForest)
+rf <- train(Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15.. ~ Made.digital.payments.in.the.past.year..female.....age.15..+Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15..... +
+              Account..out.of.labor.force....age.15...+Outstanding.housing.loan..primary.education.or.less....age.15...+
+             +Coming.up.with.emergency.funds..not.possible..income..poorest.40.....age.15...+
+              Used.a.mobile.phone.or.the.internet.to.access.an.account..income..richest.60.....age.15.....+Used.a.mobile.phone.or.the.internet.to.access.an.account..older.adults....age.25.....
+          ,data = training_set2, method = 'rf', trControl = trainControl(method = 'oob'),
+            tuneGrid = expand.grid(mtry =10:40))
+pred2<-predict(rf,test_set2)
+rf
+plot(rf)
+rf$bestTune
+rf$finalModel
+
+```
+** lower middle income economy  
+##1. subset the data 
+##2.Missing data Imputation - Median 
+##3. find important variables using Lasso regression
+```{r}
+#subset data 
+df4= subset(df,df$X.4==3)
+preProcModel <- preProcess(df4, method = "medianImpute")
+DF4<-predict(preProcModel, df4)
+#finding best vairables 
+library(glmnet)
+library(caret)
+library(psych)
+which( colnames(DF4)=="Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..")
+set.seed(2019)
+X=data.matrix(DF4[,-654])
+Y=as.vector(DF4$Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..)
+cvfit2 = cv.glmnet(X, Y)
+coef(cvfit2, s = "lambda.min")
+#imp variables
+#Mobile.money.account..income..richest.60......age.15...                                                                                              0.04469269
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..rural.....age.15.....                                                                      0.22033462
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..older.adults....age.25.....                                                                0.19331327
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..out.of.labor.force.....age.15.....                                                         0.30539660
+#Borrowed.from.a.financial.institution..rural....age.15...                                                                                           -0.02921602
+#No.account.because.of.lack.of.necessary.documentation....age.15..                                                                                   -0.14117774
+
+```
+##4.Random forest regression model3 :
+```{r}
+#data partition 
+library(caTools)
+set.seed(2019)
+split = sample.split(DF4$Used.a.mobile.phone.or.the.internet.to.access.an.account....with.an.account..age.15..,SplitRatio = 0.8)
+training_set3 = subset(DF4, split == TRUE)
+test_set3 = subset(DF4, split == FALSE)
+
+#random forest regression 
+library(randomForest)
+rf2 <- train(Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15.. ~ Mobile.money.account..income..richest.60......age.15...+Used.a.mobile.phone.or.the.internet.to.access.an.account..rural.....age.15..... 
+             +Used.a.mobile.phone.or.the.internet.to.access.an.account..older.adults....age.25..... +Used.a.mobile.phone.or.the.internet.to.access.an.account..out.of.labor.force.....age.15.....  +
+               Borrowed.from.a.financial.institution..rural....age.15...  +No.account.because.of.lack.of.necessary.documentation....age.15.. ,data = training_set3, method = 'rf', trControl = trainControl(method = 'oob'),
+             tuneGrid = expand.grid(mtry =1:40))
+pred3<-predict(rf2,test_set3)
+rf2
+plot(rf2)
+rf2$bestTune
+rf2$finalModel
+```
+
+**Upper middle income economy  
+##1. subset the data 
+##2.Missing data Imputation - Median 
+##3. find important variables using Lasso regression
+```{r}
+#subset data 
+df5= subset(df,df$X.4==4)
+preProcModel <- preProcess(df5, method = "medianImpute")
+DF5<-predict(preProcModel, df5)
+#finding best vairables 
+library(glmnet)
+library(caret)
+library(psych)
+which( colnames(DF5)=="Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..")
+set.seed(2019)
+X=data.matrix(DF5[,-654])
+Y=as.vector(DF5$Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15..)
+cvfit3 = cv.glmnet(X, Y)
+coef(cvfit3, s = "lambda.min")
+#imp variables
+#No.account.because.of.lack.of.necessary.documentation....age.15..                                                                                   -0.208623148
+#No.account.because.of.lack.of.necessary.documentation....without.a.financial.institution.account..age.15...                                         -0.106863057
+#Used.the.internet.to.pay.bills.in.the.past.year...secondary.education.or.more....age.15..                                                            0.013687914
+#Saved.for.old.age..male....age.15...                                                                                                                -0.033327876
+#Received.private.sector.wages..through.a.mobile.phone....age.15..                                                                                   -0.506733992
+#Borrowed.from.a.financial.institution..rural....age.15...                                                                                           -0.111471129
+#Borrowed.from.a.financial.institution.or.used.a.credit.card..primary.education.or.less....age.15...                                                 -0.005520971
+#Borrowed.any.money.in.the.past.year..primary.education.or.less....age.15...                                                                         -0.022075611
+#Received.domestic.remittances..through.a.mobile.phone....recipients..age.15..                                                                       -0.044045572
+#Mobile.money.account..income..richest.60......age.15...                                                                                              0.136295203
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..out.of.labor.force.....age.15.....                                                         0.294889855
+#Mobile.money.account..in.labor.force....age.15...                                                                                                    0.043459034
+# No.deposit.and.no.withdrawal.from.an.account.in.the.past.year..income..richest.60......age.15...                                                    -0.018648138
+# No.deposit.and.no.withdrawal.from.an.account.in.the.past.year..rural.....age.15...                                                                  -0.002498068
+#Credit.card.ownership..young.adults.....age.15.24..                                                                                                  0.056869448
+#Used.a.mobile.phone.or.the.internet.to.access.an.account..rural.....age.15.....                                                                      0.280001277
+#Used.a.mobile.phone.or.the.internet.to.access.a.financial.institution.account.in.the.past.year....age.15..                                           0.038721259
+
+```
+##4.Random forest regression model3 :
+```{r}
+
+#data partition 
+library(caTools)
+set.seed(2019)
+split = sample.split(DF5$Used.a.mobile.phone.or.the.internet.to.access.an.account....with.an.account..age.15..,SplitRatio = 0.8)
+training_set4 = subset(DF5, split == TRUE)
+test_set4 = subset(DF5, split == FALSE)
+
+#random forest regression 
+library(randomForest)
+rf3 <- train(Used.a.mobile.phone.or.the.internet.to.access.an.account....age.15.. ~No.account.because.of.lack.of.necessary.documentation....age.15..+Used.a.mobile.phone.or.the.internet.to.access.a.financial.institution.account.in.the.past.year....age.15..+Used.a.mobile.phone.or.the.internet.to.access.an.account..rural.....age.15.....+Credit.card.ownership..young.adults.....age.15.24..+No.deposit.and.no.withdrawal.from.an.account.in.the.past.year..rural.....age.15...+No.deposit.and.no.withdrawal.from.an.account.in.the.past.year..income..richest.60......age.15...+Mobile.money.account..in.labor.force....age.15...+Used.a.mobile.phone.or.the.internet.to.access.an.account..out.of.labor.force.....age.15..... +Mobile.money.account..income..richest.60......age.15...+Received.domestic.remittances..through.a.mobile.phone....recipients..age.15..+Borrowed.any.money.in.the.past.year..primary.education.or.less....age.15...+Borrowed.from.a.financial.institution.or.used.a.credit.card..primary.education.or.less....age.15...+Borrowed.from.a.financial.institution..rural....age.15...+Saved.for.old.age..male....age.15...+Received.private.sector.wages..through.a.mobile.phone....age.15..+Used.the.internet.to.pay.bills.in.the.past.year...secondary.education.or.more....age.15..+No.account.because.of.lack.of.necessary.documentation....without.a.financial.institution.account..age.15...               ,data = training_set4, method = 'rf', trControl = trainControl(method = 'oob'))
+pred3<-predict(rf3,test_set4)
+pred3
+rf3
+plot(rf3)
+rf3$bestTune
+rf3$finalModel
+```
