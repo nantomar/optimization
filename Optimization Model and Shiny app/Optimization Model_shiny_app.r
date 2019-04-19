@@ -3,77 +3,64 @@ library(shiny)
 library(lpSolveAPI)
 library(shinythemes)
 ui<-( navbarPage(theme = shinytheme("superhero"),"Linear Programing Optimization model",
-             tabPanel("Instructions",
-                      mainPanel(
-                        h3('Instructions for use'),
-                        h4('This app asks the user to input three values'),
-                        h4('The three inputs are the demand in the problem ,
-                             
-                          the linear program will provide the quantities to produce and the optimised cost 
-                          '),
-                        h4('the problem statement is given on the next tab below the model displayed'),
-                        h4('the r code can be found in the below given github account'),
-                        h3(a('Github Account',
-                             "https://github.com/NTomarRajput/Analytical_models_ntomar.git",
-                             target="_blank"))
-                      )),        
-             tabPanel("LP Model and Problem",
-                      mainPanel(
-                        h3('Production Planning problem :A manufacturing manager is in charge of minimizing the total costs (raw materials, labor and storage costs) of four months.
+                 tabPanel("Instructions",
+                          mainPanel(
+                            h3('Instructions of use:'),
+                            h4('This app takes three input values.'),
+                            h4('The three inputs are the demands in this production planning Problem,
+                               
+                               the linear program will provide the solution. Output of quantities to produce and the optimised cost 
+                               Will be received from the app.'),
+                            h4(' Problem details are stated on the next tab and the linear model is also displayed.'),
+                            h4(' R code can be found in the below given github account'),
+                            h3(a('Github Account',
+                                 "https://github.com/NTomarRajput/Analytical_models_ntomar.git",
+                                 target="_blank"))
+                            )),        
+                 tabPanel("LP Model and Problem",
+                          mainPanel(
+                              ('Production Planning problem :A manufacturing manager is in charge of minimizing the total costs (raw materials, labor and storage costs) of four months.
                                + Labor costs are of 12 dollars per hour
-
                                + Each unit of final product needs 30 minutes of labor
-
                                + Storage costs are equal to 2 e for each unit stored at the end of the month.
-
                                + Any unit produced at a given month can be used to cover the demand of the same month, or be stored to cover the demand of months to come.
-
                                + At the beginning of month 1 there is no stock, and there are no minimum stock requirements for any month
-                           
-                                SOLUTION: model :
-
-                                Decison variables used in to define the model are defined for i = 1, . . . , 4:),
-
-
-                        • Variables qi representing the quantity produced in month i
-
-
-                        • Variables si representing the stock at the end of month i
-
-
-                        • the objective function get teh minimised cost 
-
-
-                        • the user can alter the demand and depending on that the production variables will change and the cost is optimised.'),
-                        verbatimTextOutput("model"))),
-             
-             tabPanel("Optimization results ",
-                      sidebarPanel(
-                        h3('Please select variables'),
-                        numericInput('demand1','total demand1 selected', 100, min = 50, max = 1000, step = 1),
-                        numericInput('demand2','total demand2 selected', 200, min = 50, max = 500, step = 1),
-                        numericInput('demand3','total demand3 selected', 150, min = 50, max = 1000, step = 1),
-                        numericInput('demand4','total demand4 selected', 400, min = 50, max = 1000, step = 1),
-                        submitButton('Submit')),
-                      mainPanel(
-                        h3('Results of optimization'),
-                        h4('demand1 selected'),
-                        verbatimTextOutput("outdemand1"),
-                        h4('demand2 selected'),
-                        verbatimTextOutput("outdemand2"),
-                        h4('demand3 selected'),
-                        verbatimTextOutput("outdemand3"),
-                        h4('demand4 selected'),
-                        verbatimTextOutput("outdemand4"),
-                        h4('quantities to produce'),
-                        verbatimTextOutput("variables"),
-                        h4("optimization result:cost of production" ),
-                        verbatimTextOutput("objective")))
-            
-)
-            
-             
-                        )
+                               
+                               SOLUTION: Model :
+                               Decison variables used in to define the model are defined for i = 1, . . . , 4:),
+                               • Variables qi representing the quantity produced in month i
+                               • Variables si representing the stock at the end of month i
+                               • the objective function get teh minimised cost 
+                               • the user can alter the demand and depending on that the production variables will change and the cost is optimised.'),
+                            verbatimTextOutput("model"))),
+                 
+                 tabPanel("Optimization results ",
+                          sidebarPanel(
+                            h3('Please select variables'),
+                            numericInput('demand1','total demand1 selected', 100, min = 50, max = 1000, step = 1),
+                            numericInput('demand2','total demand2 selected', 200, min = 50, max = 500, step = 1),
+                            numericInput('demand3','total demand3 selected', 150, min = 50, max = 1000, step = 1),
+                            numericInput('demand4','total demand4 selected', 400, min = 50, max = 1000, step = 1),
+                            submitButton('Submit')),
+                          mainPanel(
+                            h3('Results of optimization'),
+                            h4('demand1 selected'),
+                            verbatimTextOutput("outdemand1"),
+                            h4('demand2 selected'),
+                            verbatimTextOutput("outdemand2"),
+                            h4('demand3 selected'),
+                            verbatimTextOutput("outdemand3"),
+                            h4('demand4 selected'),
+                            verbatimTextOutput("outdemand4"),
+                            h4('quantities to produce'),
+                            verbatimTextOutput("variables"),
+                            h4("optimization result:cost of production" ),
+                            verbatimTextOutput("objective")))
+                 
+                 )
+      
+      
+                 )
 
 server <- function(input, output) {
   lprec <- make.lp(4,8)
@@ -97,7 +84,7 @@ server <- function(input, output) {
     solve(lprec)
     get.objective(lprec)
   })
-
+  
   output$variables <- renderText({
     set.constr.value(lprec, c(input$demand1,input$demand2,input$demand3,input$demand4), constraints=(1:4))
     solve(lprec)
@@ -112,3 +99,5 @@ server <- function(input, output) {
 }
 
 shinyApp(ui = ui, server = server)
+
+                       
