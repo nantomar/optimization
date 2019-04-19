@@ -14,19 +14,24 @@ ui<-( navbarPage(theme = shinytheme("superhero"),"Linear Programing Optimization
                         h4('the problem statement is given on the next tab below the model displayed'),
                         h4('the r code can be found in the below given github account'),
                         h3(a('Github Account',
-                             "https://github.com/NTomarRajput/Learning.git",
+                             "https://github.com/NTomarRajput/Analytical_models_ntomar.git",
                              target="_blank"))
                       )),        
              tabPanel("LP Model and Problem",
                       mainPanel(
                         h3('Production Planning problem :A manufacturing manager is in charge of minimizing the total costs (raw materials, labor and storage costs) of four months.
-                             + Labor costs are of 12 dollars per hour
-                             + Each unit of final product needs 30 minutes of labor
-                             + Storage costs are equal to 2 e for each unit stored at the end of the month.
-                             + Any unit produced at a given month can be used to cover the demand of the same month, or be stored to cover the demand of months to come.
-                             + At the beginning of month 1 there is no stock, and there are no minimum stock requirements for any month
+                               + Labor costs are of 12 dollars per hour
+
+                               + Each unit of final product needs 30 minutes of labor
+
+                               + Storage costs are equal to 2 e for each unit stored at the end of the month.
+
+                               + Any unit produced at a given month can be used to cover the demand of the same month, or be stored to cover the demand of months to come.
+
+                               + At the beginning of month 1 there is no stock, and there are no minimum stock requirements for any month
                            
-                                 SOLUTION: model :
+                                SOLUTION: model :
+
                                 Decison variables used in to define the model are defined for i = 1, . . . , 4:),
 
 
