@@ -1,0 +1,262 @@
+---
+title: "Group_1-Data_Preparataion"
+Author:"Nancy Tomar"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Libraries Used
+```{r}
+library(data.table)
+library(dplyr)
+library(caret)
+library(corrplot)
+library(tm)
+library(SnowballC)
+
+```
+
+##Loading Dataset
+```{r}
+data<-read.csv('Master Data March 19.csv')
+data2 = read.csv('Master Data February 19.csv')
+```
+
+##Feature Selection
+```{r}
+#For March Data
+data1<-subset.data.frame(data,select = c('Br.Branch.Desc','SR.Owner..Q..','Billed..Y.N.','Billing.Notes','Call.Text' ,'Cash.Vendor...Consumable.Contracts','SR.Type','Coverage.Type','SR.Device', 'Item.Desc','Activity.Trouble.Code','SR.State','Activity.Type','Regular.Repair.Hrs',   'Regular.Travel.Hrs','Regular.Wait.Hrs','Overtime.Repair.Hrs',            'Overtime.Travel.Hrs','Overtime.Wait.Hrs','SR.Quoted.Amount....') )
+
+#For February Data
+Data_2<-subset.data.frame(data2,select = c("Br.Branch.Desc","SR.Owner..Q..","Billed..Y.N.","Billing.Notes","Call.Text" ,"Cash.Vendor...Consumable.Contracts","SR.Type","Coverage.Type","SR.Device","Item.Desc", "Activity.Trouble.Code", "SR.State", "Activity.Type","Regular.Repair.Hrs" ,        "Regular.Travel.Hrs",  "Regular.Wait.Hrs", "Overtime.Repair.Hrs" ,            "Overtime.Travel.Hrs", "Overtime.Wait.Hrs" ,"SR.Quoted.Amount...." ) )
+
+#Join the two data sets on basis of common columns row wise
+newdata<-rbind.data.frame(data1,Data_2 )
+
+write.csv(newdata,'newmergedata.csv') 
+```
+
+```{r}
+dataset<-read.csv('newmergedata.csv')
+is.data.frame(dataset)
+dataset<-dataset[,-1]
+```
+
+##Categorical Data - encode to Dummy Variables
+```{r}
+dmy<-dataset[,c(1,2,6,7,8,9,10,11,12,13)]
+dmmy<-dummyVars("~.",data=dmy,fullRank  = T)
+trsf<-data.frame(predict(dmmy,newdata=dmy))
+is.na(trsf)
+write.csv(trsf,'dummyvariablesdata.csv')
+```
+
+##Numeric Data - Z Score normalization 
+```{r}
+numeric<-dataset[,c(14:20)]
+##Correlation Plot
+library(corrplot)
+M <- cor(dataset[,14:20])
+# Plot the correlation plot with `M`
+corrplot(M, method="circle")
+```
+
+##Zscore normalization 
+
+##1 Regular.Repair.Hrs
+```{r}
+scale(numeric$Regular.Repair.Hrs,center = TRUE,scale=TRUE)
+numeric$Regular.Repair.Hrs<- (numeric$Regular.Repair.Hrs- mean(numeric$Regular.Repair.Hrs) / sd(numeric$Regular.Repair.Hrs))
+ 
+```
+
+##2 Regular.Travel.Hrs
+```{r}
+scale(numeric$Regular.Repair.Hrs,center = TRUE, scale=TRUE )  numeric$Regular.Repair.Hrs<-(numeric$Regular.Repair.Hrs- mean(numeric$Regular.Repair.Hrs) / sd(numeric$Regular.Repair.Hrs)) 
+```
+
+##3 Regular.Wait.Hrs
+```{r}
+scale(numeric$Regular.Wait.Hrs,center = TRUE, scale=TRUE)  
+numeric$Regular.Wait.Hrs<- (numeric$Regular.Wait.Hrs-mean(numeric$Regular.Wait.Hrs)/sd(numeric$Regular.Wait.Hrs) )
+```
+
+##4 Overtime.Repair.Hrs
+```{r}
+scale(numeric$Overtime.Repair.Hrs,center = TRUE,scale=TRUE) 
+numeric$Overtime.Repair.Hrs<- (numeric$Overtime.Repair.Hrs-mean(numeric$Overtime.Repair.Hrs)/sd(numeric$Overtime.Repair.Hrs))
+```
+
+##5 Overtime.Travel.Hrs
+```{r}
+scale(numeric$Overtime.Travel.Hrs,center = TRUE,scale=TRUE) 
+numeric$Overtime.Travel.Hrs<-(numeric$Overtime.Travel.Hrs-mean(numeric$Overtime.Travel.Hrs)/sd(numeric$Overtime.Travel.Hrs))
+```
+
+##6 Overtime.Wait.Hrs
+```{r}
+scale(numeric$Overtime.Wait.Hrs,center = TRUE,scale=TRUE)  
+numeric$Overtime.Wait.Hrs<-(numeric$Overtime.Wait.Hrs-mean(numeric$Overtime.Wait.Hrs)/sd(numeric$Overtime.Wait.Hrs))
+```
+
+##7 SR.Quoted.Amount....
+```{r}
+scale(numeric$SR.Quoted.Amount....,center = TRUE,scale=TRUE) 
+numeric$SR.Quoted.Amount....<-(numeric$SR.Quoted.Amount....-mean(numeric$SR.Quoted.Amount....)/sd(numeric$SR.Quoted.Amount....) )
+```
+
+
+```{r}
+numandcat<-cbind.data.frame(trsf,numeric)   #343620   ,2246
+#write.csv(numeric , 'numeric.csv')
+numandcat$Billed..Y.N.<- dataset$Billed..Y.N.
+which(colnames(numandcat)=="Billed..Y.N.")  #2247 last column is target 
+catandnum<-numandcat[,c(2247,1:2246) ] 
+write.csv(catandnum , 'catandnumvars.csv' ) 
+#merging numeric and categorical variables
+```
+
+## Encoding Text Data
+```{r}
+e<-read.csv('newmergedata.csv')
+e[,sapply(e,is.character)] <- sapply(
+  e[,sapply(e,is.character)],
+  iconv,"WINDOWS-1252","UTF-8")
+```
+
+##Bag of words 
+
+##1 Billing.Notes
+```{r}
+library(tm)
+corpus_a = VCorpus(VectorSource(e$Billing.Note))
+#Cleaning the text before converting to Bag 
+#a)Convert all words in lower case
+corpus_a= tm_map(corpus_a, content_transformer(tolower))
+#b)Convert all words in Plain text Document
+corpus_a<- tm_map(corpus_a, PlainTextDocument)
+#c)removing any  numbers from text
+corpus_a= tm_map(corpus_a, removeNumbers)
+#d)removing punctuations 
+corpus_a= tm_map(corpus_a, removePunctuation)
+#d)removing Stopwords
+corpus_a= tm_map(corpus_a, removeWords,stopwords() )
+#e)Stemming the document 
+corpus_a= tm_map(corpus_a, stemDocument)
+library(SnowballC)
+#removing extra spaces = stripWhitespace
+corpus_a= tm_map(corpus_a, stripWhitespace)
+
+
+#Creating the bag of words model - One column for each word 
+library(tm)
+bag_a = DocumentTermMatrix(corpus_a)
+#only considering Most Frequent Words for understanding correlation ,reducing sparsity 
+#second input is the proportion of words that are repeated to be kept in the bag
+library(tm)
+bag_a= removeSparseTerms(bag_a, 0.99)
+#sparse matrix into a dataframe
+bag_a =(as.matrix(bag_a))
+
+colnames(bag_a)
+```
+
+##2 Call.Text 
+```{r}
+library(tm)
+corpus_b = VCorpus(VectorSource(e$Call.Text))
+
+
+#all words in lower case
+library(tm)
+corpus_b= tm_map(corpus_b, content_transformer(tolower))
+corpus_b<- tm_map(corpus_b, PlainTextDocument)
+#removing the numbers from text
+corpus_b= tm_map(corpus_b, removeNumbers)
+#removing punctuations 
+corpus_b= tm_map(corpus_b, removePunctuation)
+
+library(SnowballC)
+corpus_b = tm_map(corpus_b, removeWords,stopwords("english") )
+corpus_b= tm_map(corpus_b, stemDocument)
+#removing extra spaces = stripWhitespace
+corpus_b= tm_map(corpus_b, stripWhitespace)
+
+#Creating the bag of words model - One column for each word 
+library(tm)
+bag_b = DocumentTermMatrix(corpus_b)
+
+#only considering Most Frequent Words for understanding correlation ,reducing sparsity 
+#second input is the proportion of words that are repeated to be kept in the bag
+bag_b= removeSparseTerms(bag_b, 0.99)
+```
+
+```{r}
+#sparse matrix into a dataframe
+
+inspect(bag_a)
+inspect(bag_b)
+findFreqTerms(bag_a) 
+findFreqTerms(bag_b)
+```
+
+```{r}
+bag1<-bag_a[,-c(2,3,4,5,6,8,10,11,12,13,16,18,19,21,22,23,24,25,26,27:29)]
+bag1<-as.matrix(bag1)
+bag_b<-as.matrix(bag_b)
+findAssocs(bag_b, "opec", 0.5)
+inspect(removeSparseTerms(bag_b, 0.4))
+bag1<-as.data.frame(bag1)
+newbag<-cbind.data.frame(bag1,bag_b)
+length(unique(colnames(newbag)))
+write.csv(newbag,'newbagfebnmarch.csv')
+
+numrericandcat<-read.csv('catandnumvars.csv')
+
+```
+
+```{r}
+#combine text , numeric&cat data set 
+final<-cbind.data.frame (numrericandcat,newbag)
+write.csv(final, 'FinaldatamatrixFnM.csv')
+
+final<-read.csv( 'FinaldatamatrixFnM.csv')
+dim(final)
+length(unique(final[,1]))
+head(final[,1],1000)
+colnames(final)
+
+final <-final[,-1]
+dim(final)
+head(final)
+```
+
+```{r}
+#convert target in binary 
+which(colnames(final)=="Billed..Y.N.")
+str(final$Billed..Y.N.)
+final$Billed..Y.N. = factor(final$Billed..Y.N., levels = c('Y','N'), labels = c(1,0))
+summary(final$Billed..Y.N.==1)
+```
+
+```{r}
+#Final matrix 
+#data partitionining
+final<-read.csv('catandnumvars.csv')
+library(caTools)
+set.seed(2019)
+ind<-sample(1:3,nrow(final), replace = T, prob= c(0.7,0.15,0.15))
+training <-final[ind==1,c(2:2784)]
+trainingtarget<-final[ind==1,1]
+unique(trainingtarget)
+test<-final[ind==2,c(2:2784)]
+testtarget<-final[ind==2,1]
+validation <-final[ind==3,c(2:2784)]
+validation.target<-final[ind==3,1]
+```
+
+
+

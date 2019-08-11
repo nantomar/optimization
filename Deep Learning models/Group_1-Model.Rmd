@@ -1,0 +1,98 @@
+---
+title: "Group_1-Model"
+author: "Nancy"
+date: "August 6, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Libraries Used
+```{r}
+library(keras)
+library(neuralnet)
+library(magrittr)
+library(tensorflow)
+library(caTools)
+```
+
+##Reading the main matrix file
+```{r}
+final<-read.csv('FinaldatamatrixFnM.csv')
+final <-final[,-1]
+```
+
+```{r}
+set.seed(2019)
+ind<-sample(1:3,nrow(final), replace = T, prob= c(0.7,0.15,0.15))
+training <-final[ind==1,c(2:2784)]
+trainingtarget<-final[ind==1,1]
+test<-final[ind==2,c(2:2784)]
+testtarget<-final[ind==2,1]
+validation <-final[ind==3,c(2:2784)]
+validation.target<-final[ind==3,1]
+traininglabels=to_categorical(trainingtarget)
+testlabels=to_categorical(testtarget)
+validationlabels=to_categorical(validation.target)
+```
+
+```{r}
+set.seed(2019)
+model_keras <- keras_model_sequential()
+
+model_keras %>% 
+  layer_dense (units              = 62, #=> Num Of Nodes
+               activation         = "relu",
+               kernel_initializer = 'uniform',
+               input_shape        = 2783) %>% 
+  layer_dropout (rate = 0.2) %>%  #=> Dropout Below 10%: Prevent overfittin
+  # (3) Output Layer-----------------------------------------------------
+
+  layer_dense (units              = 35, #=> Num Of Nodes
+               activation         = "relu") %>% 
+  layer_dropout (rate = 0.1) %>%  
+  layer_dense (units              = 16, #=> Num Of Nodes
+               activation         = "relu") %>% 
+  layer_dropout (rate = 0.1) %>%
+layer_dense (units              = 2, #=> Binary/Multi?=>That Number
+             activation         = "softmax") %>% #=> Common for Binary
+  # (4) Compile Model-----------------------------------------------------
+compile(optimizer = 'rmsprop', #=> Most Popular for Optimization Algo.
+         loss      = 'binary_crossentropy', #=> Binary Classification
+         metrics = c('accuracy') ) #=> Train/Test Evaluation
+
+# Check
+
+model_keras
+system.time ( 
+history <- fit (
+  object           = model_keras,             # => Our Model
+  x                = as.matrix(training), #=> Matrix
+  y                = traininglabels,             #=> Numeric Vector 
+  batch_size       = 50,     #=> #OfSamples/gradient update in each epoch
+  epochs           = 15,     #=> Control Training cycles
+  validation_split = 0.30,
+class_weight = list("0"=1,"1"=0.22) #61407(observation in class '1')  282213(observation in class'0')
+                                      # therefore 61407/282213= 0.217591=~0.22
+) )
+
+```
+
+```{r}
+model_keras %>% evaluate(as.matrix(validation), validationlabels)
+pred<-model_keras %>% predict_classes(as.matrix(validation))
+pred1<-model_keras %>% predict_classes(as.matrix(test))
+table(Predicted=pred, Actual=validation.target)
+table(Predicted=pred1, Actual=testtarget)
+
+prob<-model_keras%>%predict_proba(as.matrix(validation))
+prob2<-model_keras%>%predict_proba(as.matrix(test))
+valresult<-cbind.data.frame(pred,prob,validation.target)
+testresult2<-cbind.data.frame(pred1,prob2,testtarget)
+save_model_hdf5(model_keras,filepath = "/Users/ntomar/Desktop/books and docs/advance ML,DP,AI/Capstone/bvt2result.h5", include_optimizer = TRUE)
+write.csv(valresult,'bvalresult.csv')
+write.csv(testresult2,'btestresult.csv')
+```
+

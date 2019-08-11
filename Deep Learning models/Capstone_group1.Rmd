@@ -1,0 +1,210 @@
+---
+title: "Capstone Presentation:Group 1"
+output: 
+  flexdashboard::flex_dashboard:
+    storyboard: true
+    orientation: rows
+    source_code: embed
+    theme: simplex
+---
+Model Goals : {.storyboard}
+=========================================
+
+
+###Find the Needle In A Haystack
+```{r}
+library(flexdashboard)
+library(knitr)
+library(ggplot2)
+library(png)
+library(jpeg)
+#http://zevross.com/blog/2017/06/19/tips-and-tricks-for-working-with-images-and-figures-in-r-markdown-documents/ [reference link]
+#https://www.earthdatascience.org/courses/earth-analytics/document-your-science/add-images-to-rmarkdown-report/  [basic rules]
+img1_path <- "iStock-658064720.jpg"
+img1 <- readJPEG(img1_path)
+#attr(img1,"info")
+
+#all defaults
+include_graphics(img1_path)
+
+```
+
+
+
+### Reduce Manual Time and Effort 
+```{r}
+#http://zevross.com/blog/2017/06/19/tips-and-tricks-for-working-with-images-and-figures-in-r-markdown-documents/ [reference link]
+
+img2_path <- "maxresdefault.jpg"
+img2 <- readJPEG(img2_path)
+#attr(img1,"info")
+
+#all defaults
+include_graphics(img2_path)
+
+```
+
+
+Model Challenges : {.storyboard}
+=========================================
+
+
+
+###  a) Imbalanced Proportion of Classes (Billed / Non Billed Calls)
+    
+```{r}
+library(plotly)
+library(dplyr)
+library(forcats)
+dataset<-read.csv('newmergedata.csv')
+dataset %>% 
+  count(Billed..Y.N.) %>% 
+  mutate(Billed..Y.N. = fct_reorder(Billed..Y.N.,n)) %>% 
+  plot_ly(x = ~Billed..Y.N., y = ~n, color = ~Billed..Y.N., type = "bar")
+  
+```
+
+
+*** 
+This interactive Graph shows the proportion of classes - Billed and Non billed calls
+     here  : Y=61407(observation in class '1') 
+         and N 282213(observation in class'0')  
+     
+    
+
+
+
+### b) Data Changes - Changing Variables , levels and new Text 
+
+```{r}
+img5_path <- "datachanges1.jpg"
+img5 <- readJPEG(img5_path)
+include_graphics(img5_path)
+
+```
+
+
+*** 
+
+The image is an example of changes in the levels of a categorical variable over the various Dataset. 
+  Similary the free text columns also give different terms as frequent with each new Dataset.  
+
+
+
+Solutions: {.storyboard}
+=========================================
+
+
+
+### a)Enabling Model Prediction based on Class Proportion 
+```{r}
+img3_path <- "Classimb.png"
+img3 <- readPNG(img3_path)
+#attr(img1,"info")
+
+#all defaults
+include_graphics(img3_path)
+
+
+```
+
+
+*** 
+
+The introduction of class weight in the model helps to define a weigtage to each class of predictions. 
+  we defined the billable calls prediction to be in 0.22 proportion of total predictions that the model will do.
+  
+
+### b)Finding Frequent Terms with Bag of words Model 
+```{r}
+img4_path <- "comparison_cloud.png"
+img4 <- readPNG(img4_path)
+#attr(img1,"info")
+
+#all defaults
+include_graphics(img4_path)
+
+```
+
+
+*** 
+
+The following chart shows the word cloud of the two text columns.
+ with the help of Bag of words model we can find freqeunt terms in each new data set and incorporate in the model.
+ 
+ 
+Model Results : {.storyboard}
+=========================================
+
+
+### LIFT Chart 
+    
+```{r}
+library(caret)
+library(lattice)
+#cdata<-read.csv('resultsfinal.csv')
+#liftdat<-lift(factor(Class)~Scored.Probability, cdata)
+#saveRDS(liftdat, "/Users/ntomar/Desktop/books and docs/advance ML,DP,AI/Capstone/liftdat.rds")
+liftdat <- readRDS("/Users/ntomar/Desktop/books and docs/advance ML,DP,AI/Capstone/liftdat.rds")
+xyplot(liftdat, main="Lift Chart",aspect = "fill",col='blue',ylab="% Class 1(Billed) calls found",xlab="% Total Samples Tested") 
+```
+    
+
+
+
+### Result Metrics
+
+```{r}
+cdata<-read.csv('resultsfinal.csv')
+library(ggplot2)
+
+confusion_matrix <- as.data.frame(table(cdata$Prediction ,cdata$Class))
+
+library(data.table)
+setnames(confusion_matrix, old=c("Var1","Var2"), new=c("Predicted","Actual"))
+
+ggplot ( data = confusion_matrix ,
+       mapping = aes(x = Actual,
+                     y = Predicted))+
+  labs(title = "Result Matrix",pos=1)+
+  geom_tile(aes(fill = Freq)) +
+  geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
+  scale_fill_gradient(low = "light green",
+                      high = "dark green") 
+
+```
+
+
+###Precision
+
+```{r}
+valueBox(0.97, caption = 'Precision_value', icon ="fa-calculator" ,color = "success")
+```
+
+
+*** 
+
+A high precision value such as this one indicates the 
+ability of the classification model to identify only the relevant data points.
+We can understand this in terms of our model :
+Precision is defined as the number of all correctly predicted Billed calls divided by the number of correctly predicted Billed calls plus the number of incorrecly predicted Billed calls. 
+incorrecly predicted Billed calls are cases the model incorrectly labels as Billed calls that are actually Non-Billed.
+Precision expresses the proportion of the data points our model says was relevant actually were relevant.
+
+
+###Understanding Results Probability in terms of Non Billed Call
+
+```{r}
+gauge(value = cdata$Scored.Probability[33],min = 0,max =1,symbol = "%")
+
+```
+
+
+*** 
+
+The following Gauge shows  is an example of the result .
+ The gauge has max value as 1 and min as 0 .
+ for this call (observation no 33 in result file) there is only 0.25% chance that this call will be billed .
+
+ 
+ 
